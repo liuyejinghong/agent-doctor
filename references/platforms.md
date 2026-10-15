@@ -70,6 +70,16 @@ skill 访问权限（allow/ask/deny）与其执行期间工具权限是两个层
 
 description 中的“找不到代码、上下文很快耗尽、改完无法验证”等症状用于解释用途和辅助显式选择，不承诺自动路由，也不改变授权范围。先显式调用，再解析自然语言的 audit/recheck/focus；仅提到症状不等于同意启动整套体检。若宿主忽略相应 metadata，应标明限制，而不是偷偷开启隐式调用。
 
+## 上下文观测入口（需按当前客户端版本核实）
+
+**这些是用户在各客户端取得信息的线索，不是本 skill 能自动执行的 shell 命令。** 若用户已提供脱敏状态输出或当前会话安全暴露的 usage 信息，先用它；没有则列为补证，不为了测量偷偷启动 CLI 或服务。
+
+- **Claude Code**：官方 `/context [all]` 可展示当前上下文使用图与分项（具体细节随版本变化）。请用户在 Claude Code 界面执行并提供脱敏结果。它显示的是**取得快照时**的状态，不代表 Doctor 启动前状态。资料：https://code.claude.com/docs/zh-CN/commands
+- **Codex**：某些客户端的 `/status` 可见会话与 context usage；不保证所有版本、CLI/API 返回完整分类。用户提供现成截图/文字或已授权元数据时才列为实测。资料：https://developers.openai.com/blog/mastering-codex-remote-for-engineering
+- **OpenCode**：可查看当前客户端提供的上下文/会话统计及现成日志；`limit.context` 是**模型容量配置**而非当前使用量。某些 API 有 session context 数据，必须有明确授权且工具具有安全读取契约才可用，不默认访问服务。资料：https://opencode.ai/docs/providers/
+
+把当前使用量、累计 usage、缓存 token、保留在窗口的内容分开。宿主未披露的 system prompt 和 MCP schema token 不反推。详见 [context-map.md](context-map.md)。
+
 ## 被审计配置的候选来源
 
 先用当前会话暴露的运行信息，再看当前项目入口与用户已授权配置。常见线索包括 `AGENTS.md`、`CLAUDE.md`、规则目录、上述 skill 目录、harness 设置、工具清单和启动配置。

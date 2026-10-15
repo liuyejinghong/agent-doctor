@@ -6,7 +6,19 @@
 
 Agent 总是改错文件、在目录里兜圈子，工具输出挤满上下文，改完代码却说不清怎么验证？除了模型能力，指令、工具、配置和验证流程也值得检查。
 
-Agent Doctor 是面向 **Claude Code、Codex 和 OpenCode** 的只读环境体检 Skill。它检查当前项目及已授权的 agent 配置，把具体问题整理成带证据、优先级和最小修复方案的整改看板。你决定改什么，执行阶段再动手。
+Agent Doctor 是面向 **Claude Code、Codex 和 OpenCode** 的只读环境体检 Skill。**先还原上下文结构与加载路径，再检查工具、验证和工作流**；根据证据给出 P0–P3 整改看板。你决定改什么，独立执行阶段才动手。
+
+## 第一份交付：上下文结构图，不是 22 项打勾
+
+一次体检要回答：**模型实际接收了哪些指令、skills、工具定义、历史与工具返回？它们通过什么条件加载？哪个环节在膨胀、冲突，或缺了关键约束？**
+
+| 组成 | 必须区分的状态 |
+|---|---|
+| 宿主指令与全局/项目/目录规则 | 当前实际生效、按规则推定、仅发现配置、未知 |
+| Skills 和工具/MCP 定义 | 安装或启用 ≠ 本轮真正加载；元数据 ≠ 正文 ≠ 工具返回 |
+| 历史/记忆/压缩摘要、文件读取、hooks/回传 | 开场占用与工作中增长；历史累计量与窗口残留量 |
+
+报告先给 **来源清单、加载链、可测占用与无法观测的缺口**，再提出改动。没有宿主 token 遥测时，明确“未知”，不拿字符数充当 tokens，更不会凭安装的文件大小判断上下文浪费。Doctor 自己的读取成本也单独标出。方法见 [上下文结构诊断](references/context-map.md)。
 
 ## 你会得到什么
 
@@ -19,7 +31,7 @@ Agent Doctor 是面向 **Claude Code、Codex 和 OpenCode** 的只读环境体�
 | 已确认问题 | AD-001 | P1 | `scripts/check.sh:12` 的 `pytest \|\| true` 把失败退出码变为成功；远端门禁仍未知 | 修正该入口的退出码传播，保留现有检查；在隔离环境验证失败与成功样本 |
 | 待验证假设 | VFY-001 | P2 | 默认使用高 effort，但没有同类任务的成本与质量对照 | 先收集可比证据，再判断是否值得调整，不直接全局降档 |
 
-正式报告包含环境快照、22 项覆盖状态、整改看板和逐项证据卡。每张卡写清反证、根因、最小方案、保留项、成本依据、依赖、验收、回滚和授权范围。`AD-*` 表示有证据支持的问题，`VFY-*` 表示还需验证的假设；待验证项的优先级表示补证紧迫度。
+正式报告先提供上下文结构与观测边界，再提供环境快照、22 项覆盖状态、整改看板和逐项证据卡。每张卡写清反证、根因、最小方案、保留项、成本依据、依赖、验收、回滚和授权范围。`AD-*` 表示有证据支持的问题，`VFY-*` 表示还需验证的假设；待验证项的优先级表示补证紧迫度。
 
 | 优先级 | 含义 |
 |---|---|
@@ -43,15 +55,15 @@ python3 tools/package.py
 
 | 客户端 | 安装包 | 将完整 `agent-doctor/` 目录复制到 | 对话中调用 |
 |---|---|---|---|
-| Claude Code | `agent-doctor-claude-code-v1.1.0.zip` | `.claude/skills/agent-doctor/` | `/agent-doctor` |
-| Codex | `agent-doctor-portable-v1.1.0.zip` | `.agents/skills/agent-doctor/` | `$agent-doctor` |
-| OpenCode | `agent-doctor-portable-v1.1.0.zip` | `.opencode/skills/agent-doctor/` | `/agent-doctor`，需支持包内 metadata |
+| Claude Code | `agent-doctor-claude-code-v1.2.0.zip` | `.claude/skills/agent-doctor/` | `/agent-doctor` |
+| Codex | `agent-doctor-portable-v1.2.0.zip` | `.agents/skills/agent-doctor/` | `$agent-doctor` |
+| OpenCode | `agent-doctor-portable-v1.2.0.zip` | `.opencode/skills/agent-doctor/` | `/agent-doctor`，需支持包内 metadata |
 
 每个客户端选一处安装，不要只复制 `SKILL.md`。两个版本共用正文与参考规则；通用版仅移除 Claude Code 专用的 `disable-model-invocation` 字段。全局路径与触发策略见 [平台说明](references/platforms.md)。
 
 ## 22 项体检内容
 
-先建立检查账本，再按风险和你的关注点深入。每项最终标为：**已证实问题、样本内未见问题、未知、不适用或未检查**。
+先还原上下文来源及加载链，再建立检查账本，按风险和你的关注点深入。每项最终标为：**已证实问题、样本内未见问题、未知、不适用或未检查**。
 
 | 维度 | 检查项 | 重点回答 |
 |---|---|---|
@@ -76,7 +88,7 @@ python3 tools/package.py
 
 Codex 使用 `$agent-doctor`。这些是对话指令，不是终端命令。只读与费用限制已内置，无需每次复述长篇禁令。
 
-默认使用 `audit` 模式。“重点看工具输出”会调整检查顺序，不会悄悄删掉其他维度；明确只检查某一范围时，其他项记录为本轮未检查。历史记录仅限当前可见会话及你授权的当前项目记录，不据静态配置推断日常习惯。
+**即使当前宿主没有上下文统计，也要产出逐类结构清单和可追溯的加载路径/未知路径。** 默认使用 `audit` 模式。“重点看工具输出”会调整检查顺序，不会悄悄删掉其他维度；明确只检查某一范围时，其他项记录为本轮未检查。历史记录仅限当前可见会话及你授权的当前项目记录，不据静态配置推断日常习惯。
 
 ### 2. 批准方案，取得执行交接单
 
@@ -130,7 +142,7 @@ agent-doctor/
 ├── SKILL.md                 # 动作边界、输入解析和六步体检流程
 ├── README.md / README.zh-CN.md
 ├── agents/openai.yaml       # Codex 显式调用策略
-├── references/              # 22 项规则、报告模板、审批交接、平台说明
+├── references/              # 上下文结构诊断、22 项规则、报告模板、审批交接、平台说明
 ├── assets/eval-cases.json   # 合成行为评测场景
 ├── tools/package.py         # 离线结构校验与打包，仅维护时使用
 ├── tests/test_package.py    # 维护工具回归测试，不是模型行为测试
@@ -142,6 +154,6 @@ agent-doctor/
 
 ## 验证状态与来源
 
-版本 **1.1.0**。可复现的结构校验、维护工具测试及验证边界见 [BUILD-VALIDATION.md](BUILD-VALIDATION.md)。**42 个合成行为场景尚未在真实 agent 中执行**，不能解读为“42 项模型测试通过”。实机安装、触发抑制、宿主隔离与模型行为可靠性仍需验证。
+版本 **1.2.0**。可复现的结构校验、维护工具测试及验证边界见 [BUILD-VALIDATION.md](BUILD-VALIDATION.md)。**42 个合成行为场景尚未在真实 agent 中执行**，不能解读为“42 项模型测试通过”。实机安装、触发抑制、宿主隔离与模型行为可靠性仍需验证。
 
 方法参考 AI Coding Dictionary 和 AIHero 的 Skills 材料；这是独立项目，不是 AIHero 官方 Skill。检查规则目前用中文编写，报告跟随用户语言。详见 [来源与设计取舍](references/sources.md) 及 [更新记录](CHANGELOG.md)。

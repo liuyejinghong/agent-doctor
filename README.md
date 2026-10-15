@@ -6,7 +6,13 @@ English | [简体中文](README.zh-CN.md)
 
 Does your agent edit the wrong files, wander through the repository, fill its context with tool output, or finish without useful verification? Model capability is one possible factor. Instructions, tools, configuration, and feedback loops are also worth examining.
 
-Agent Doctor is a **read-only environment-audit skill for Claude Code, Codex, and OpenCode**. It inspects the current project and authorized agent configuration, then turns concrete findings into a prioritized remediation board with evidence and minimal fixes. You choose the changes; a separate execution stage implements them.
+Agent Doctor is a **read-only environment-audit skill for Claude Code, Codex, and OpenCode**. **It reconstructs the sources and loading paths of your agent's context first**, then investigates tools, validation, and workflow. Evidence-backed findings become a P0–P3 remediation board. You choose what to change; a separate execution stage implements it.
+
+## First deliverable: a context composition map
+
+Before recommending changes, the skill must account for **what enters the current context, how, and why**: host instructions, global/project/directory rules, skill metadata vs. bodies, tool/MCP schemas, conversations/memory/compaction, tool results, and hooks/attachments/agent returns. Each category includes its source, trigger, observed loading state, measurement method, and evidence gap.
+
+An installed skill is not necessarily loaded. Cumulative usage is not the current resident window. File characters are not exact tokens. If the host does not expose a pre-audit snapshot or category breakdown, the report says **unknown**, maps what can be proved, and requests the smallest missing evidence. The Doctor's own reading overhead is kept separate. See the [context reconstruction method](references/context-map.md).
 
 ## What you get
 
@@ -19,7 +25,7 @@ Not just “improve your prompt.” A report explains what is wrong, why the fin
 | Confirmed finding | AD-001 | P1 | `pytest \|\| true` at `scripts/check.sh:12` turns a failing check into success; remote merge protection is still unknown | Restore exit-code propagation while preserving existing checks; verify failing and passing fixtures in isolation |
 | Verification hypothesis | VFY-001 | P2 | High effort is the default, but comparable cost and quality evidence is missing | Gather comparable evidence before deciding whether to change routing; do not lower effort globally |
 
-A full report includes an environment snapshot, a 22-item coverage ledger, a board, and individual evidence cards. Each card covers counterevidence, root cause, a minimal remedy, constraints to preserve, cost basis, dependencies, acceptance criteria, rollback, and approval scope. `AD-*` identifies evidence-backed findings; `VFY-*` identifies hypotheses needing verification. A verification priority expresses urgency to investigate, not certainty that an incident occurred.
+A full report starts with a context composition inventory and loading paths, followed by an environment snapshot, a 22-item coverage ledger, a board, and evidence cards. Each card covers counterevidence, root cause, a minimal remedy, constraints to preserve, cost basis, dependencies, acceptance criteria, rollback, and approval scope. `AD-*` identifies evidence-backed findings; `VFY-*` identifies hypotheses needing verification. A verification priority expresses urgency to investigate, not certainty that an incident occurred.
 
 | Priority | Meaning |
 |---|---|
@@ -43,15 +49,15 @@ These offline maintenance commands validate and build the archives. They do not 
 
 | Client | Archive | Copy the complete `agent-doctor/` folder to | Invoke in the agent conversation |
 |---|---|---|---|
-| Claude Code | `agent-doctor-claude-code-v1.1.0.zip` | `.claude/skills/agent-doctor/` | `/agent-doctor` |
-| Codex | `agent-doctor-portable-v1.1.0.zip` | `.agents/skills/agent-doctor/` | `$agent-doctor` |
-| OpenCode | `agent-doctor-portable-v1.1.0.zip` | `.opencode/skills/agent-doctor/` | `/agent-doctor`, with support for the bundled metadata |
+| Claude Code | `agent-doctor-claude-code-v1.2.0.zip` | `.claude/skills/agent-doctor/` | `/agent-doctor` |
+| Codex | `agent-doctor-portable-v1.2.0.zip` | `.agents/skills/agent-doctor/` | `$agent-doctor` |
+| OpenCode | `agent-doctor-portable-v1.2.0.zip` | `.opencode/skills/agent-doctor/` | `/agent-doctor`, with support for the bundled metadata |
 
 Choose one installation scope per client. Do not copy `SKILL.md` alone. Both variants share their body and references; the portable variant removes only Claude Code's `disable-model-invocation` field. See [platform notes](references/platforms.md) for global paths and invocation policies.
 
 ## The 22 checks
 
-Start with a coverage ledger, then investigate according to risk and your focus. Every item ends as **confirmed issue, no issue observed in the sample, unknown, not applicable, or not inspected**.
+First reconstruct context sources and loading paths, then investigate the 22 checks according to risk and your focus. Every item ends as **confirmed issue, no issue observed in the sample, unknown, not applicable, or not inspected**.
 
 | Dimension | Checks | Main questions |
 |---|---|---|
@@ -77,7 +83,7 @@ session history. Show the board first, then evidence and approvable remedies.
 
 Use `$agent-doctor` in Codex. These are conversation instructions, not terminal commands. Read-only and spending boundaries are built in; you do not need to repeat a long prohibition list.
 
-The default mode is `audit`. “Focus on tool output” changes the order, not the coverage ledger. An explicitly narrower scope is respected, with other items recorded as not inspected this run. History is limited to the visible conversation and authorized records for the current project; static settings do not establish your working habits.
+**Even without host token telemetry, the report must include every context category and the known or unknown loading paths.** The default mode is `audit`. “Focus on tool output” changes the order, not the coverage ledger. An explicitly narrower scope is respected, with other items recorded as not inspected this run. History is limited to the visible conversation and authorized records for the current project; static settings do not establish your working habits.
 
 ### 2. Approve a plan and receive a handoff
 
@@ -133,7 +139,7 @@ agent-doctor/
 ├── SKILL.md                 # Boundaries, input mapping, six-step audit
 ├── README.md / README.zh-CN.md
 ├── agents/openai.yaml       # Codex explicit-invocation policy
-├── references/              # 22 checks, report, handoff, platform notes
+├── references/              # Context map, 22 checks, report, handoff, platform notes
 ├── assets/eval-cases.json   # Synthetic behavioral evaluation cases
 ├── tools/package.py         # Offline maintainer checks and packaging
 ├── tests/test_package.py    # Maintainer-tool regression tests, not agent evals
@@ -145,6 +151,6 @@ agent-doctor/
 
 ## Validation and sources
 
-Version **1.1.0**. See [BUILD-VALIDATION.md](BUILD-VALIDATION.md) for reproducible structure checks, maintainer-tool tests, and limitations. **The 42 synthetic behavioral scenarios have not been executed with real agents.** They are not 42 passed model tests. Real-client installation, invocation suppression, host isolation, and model reliability still need validation.
+Version **1.2.0**. See [BUILD-VALIDATION.md](BUILD-VALIDATION.md) for reproducible structure checks, maintainer-tool tests, and limitations. **The 42 synthetic behavioral scenarios have not been executed with real agents.** They are not 42 passed model tests. Real-client installation, invocation suppression, host isolation, and model reliability still need validation.
 
 The design draws on the AI Coding Dictionary and AIHero's skills material. This is an independent project, not an official AIHero skill. Audit rules are currently written in Chinese; report output follows the user's language. See [sources and design decisions](references/sources.md) and the [changelog](CHANGELOG.md).
