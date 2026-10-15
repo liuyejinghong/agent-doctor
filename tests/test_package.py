@@ -56,15 +56,36 @@ class PackageTests(unittest.TestCase):
 
     def test_valid_structure_and_documented_version(self) -> None:
         files, version = self.check()
-        self.assertEqual(version, "1.1.0")
-        self.assertEqual(len(files), 17)
+        self.assertEqual(version, "1.2.0")
+        self.assertEqual(len(files), 18)
         for name in ("README.md", "README.zh-CN.md", "BUILD-VALIDATION.md"):
             self.assertIn(version, files[name].decode())
         self.assertEqual(len(json.loads(files["assets/eval-cases.json"])["cases"]), 42)
 
     def test_missing_inline_check_rejected(self) -> None:
-        self.edit("SKILL.md", "C18 决策是否", "决策是否")
+        self.edit("SKILL.md", "C18 决策", "决策")
         with self.assertRaisesRegex(ValueError, "Entry matrix"):
+            self.check()
+
+    def test_missing_context_map_rejected(self) -> None:
+        (self.root / "references/context-map.md").unlink()
+        with self.assertRaisesRegex(ValueError, "Missing required context map"):
+            self.check()
+
+    def test_missing_context_class_rejected(self) -> None:
+        self.edit("references/context-map.md", "| T 工具定义 |", "| OMITTED 工具定义 |")
+        with self.assertRaisesRegex(ValueError, "Context inventory"):
+            self.check()
+
+    def test_context_stage_must_precede_checklist(self) -> None:
+        self.edit("SKILL.md", "## 1. 建立快照并还原上下文结构（必做）",
+                  "## 3. 建立快照并还原上下文结构（必做）")
+        with self.assertRaisesRegex(ValueError, "Context diagnosis must precede"):
+            self.check()
+
+    def test_report_must_include_doctor_overhead(self) -> None:
+        self.edit("references/report-template.md", "- Doctor 本轮引入", "- Internal only")
+        with self.assertRaisesRegex(ValueError, "Context measurement boundary"):
             self.check()
 
     def test_missing_report_check_rejected(self) -> None:
@@ -83,7 +104,7 @@ class PackageTests(unittest.TestCase):
             self.check()
 
     def test_dynamic_command_rejected(self) -> None:
-        self.edit("SKILL.md", "## 动作边界", "!`echo unsafe`\n\n## 动作边界")
+        self.edit("SKILL.md", "## 操作边界", "!`echo unsafe`\n\n## 操作边界")
         with self.assertRaisesRegex(ValueError, "dynamic execution"):
             self.check()
 

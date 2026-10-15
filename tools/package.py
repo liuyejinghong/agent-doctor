@@ -59,6 +59,26 @@ def collect_and_check() -> tuple[dict[str, bytes], str]:
     entry_checks = re.findall(r"\b[CG]\d{2}\b", matrix)
     if len(entry_checks) != 22 or set(entry_checks) != expected_checks:
         raise ValueError("Entry matrix must define each of the 22 checks once")
+    # Contract for the actual diagnostic deliverable, not merely a 22-item checklist.
+    context_bytes = files.get("references/context-map.md")
+    if context_bytes is None:
+        raise ValueError("Missing required context map")
+    context_map = context_bytes.decode("utf-8")
+    if (text.find("## 1. 建立快照并还原上下文结构（必做）") < 0 or
+            text.find("## 1. 建立快照并还原上下文结构（必做）") >= text.find("## 3. 用 22 项检查")):
+        raise ValueError("Context diagnosis must precede the 22 checks")
+    for document in (context_map, report):
+        kinds = re.findall(r"^\| ([HRSTMOX]) ", document, re.M)
+        if len(kinds) != 7 or set(kinds) != set("HRSTMOX"):
+            raise ValueError("Context inventory must include seven source classes")
+    required_states = ("已证实载入", "按规则推定", "仅发现配置", "已证实未载入", "未知")
+    if any(state not in context_map or state not in report for state in required_states):
+        raise ValueError("Context inventory missing evidence states")
+    if any(item not in context_map for item in ("A：审计前", "B：Doctor", "C：审计")):
+        raise ValueError("Context snapshot boundaries missing")
+    if any(item not in report for item in ("进入路径与占用边界", "Doctor 本轮引入")):
+        raise ValueError("Context measurement boundary missing")
+
     evaluation = json.loads(files["assets/eval-cases.json"])
     cases = evaluation["cases"]
     if evaluation["version"] != version.group(1) or evaluation["execution_status"] != "not_run_with_agents":
