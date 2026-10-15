@@ -1,5 +1,21 @@
 # Changelog
 
+## 2.0.0 — 2026-10-15
+
+### Extension environment, not a general engineering audit
+
+- Replace the mandatory 22-check flow with component inventory, visible context burden, scoped usage, dependency review and reversible cleanup priorities.
+- Retire broad CI/workflow/architecture references and the old 42 unrun behavior cases from the runtime; their history remains in v1 commits. Keep AD/VFY finding IDs and explicit invocation.
+- Add an optional offline Python collector: bounded explicit-path reads, source sizes, plugin child inventory, MCP/hook declarations, exact duplicate metadata, rule imports and selected Claude JSONL invocation counts. Existing host observations are separate from local source lengths.
+- Keep unavailable usage/tokens null; disambiguate names and deduplicate invocation events. Do not count disabled plugin contents or add parent and child prompt costs twice. Zero sampled use proposes dependency review, never automatic removal.
+- Output only metadata and statistics, not config credentials or message bodies. No subprocess, network, extension execution, apply mode or default home/history traversal.
+- Ship nine runtime files. Direct archive installation requires no build execution on the user's machine. Updating requires replacement, not overlaying stale v1 references.
+
+### Executed checks
+
+29 deterministic collector/packaging tests passed in a temporary Linux environment. Replayed the supplied plugin-list snapshot: five entries, two enabled and three disabled declarations, no current-host loading inference. Real-client audit decision quality and token savings remain unmeasured.
+
+
 ## 1.2.0 — 2026-10-15
 
 ### Back to the original purpose: diagnose the operating context

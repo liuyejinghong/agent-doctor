@@ -1,89 +1,31 @@
-# 平台适配与安全安装
+# 平台采集适配（仅按当前平台读）
 
-资料核对日期：2026-10-15。这里只说明本 skill 的发现/调用方式，不证明用户当前客户端版本或有效权限。证据来源见 `sources.md` 的 S09–S12。客户端、网关和托管策略可能不同，以当前实例为准。
-
-## 分发变体
-
-Claude Code 版的 `SKILL.md` 比通用版多一个顶层字段：`disable-model-invocation: true`。这是 Claude Code 扩展，不把它塞进要求严格标准字段的上传格式。
-
-两个版本的正文和检查材料相同。通用版保留标准 `metadata`，并附带 Codex 的 `agents/openai.yaml`。不要把两个版本同时装到同一个宿主的多个发现目录，以免产生重名与维护漂移。
-
-安装是用户选择的独立写入动作，不是体检运行过程。审计者不得自行把附件安装到项目，也不得替用户调用下载器或 package installer。
+原则：现成原生清单/统计 → 本地有界元数据 → 对高价值候选补证。不为审计新开会话、调用模型或启动 MCP；不把工具名带 doctor 当作无副作用证明。优先利用用户已经提供的结果；可直接查询的只读接口须符合本机工具契约。
 
 ## Claude Code
 
-项目级目标：`.claude/skills/agent-doctor/SKILL.md`。
-个人级目标：`~/.claude/skills/agent-doctor/SKILL.md`。
-只选一个作用域，复制整个目录，而不是只放入口文件。
+安装：`.claude/skills/agent-doctor/` 或 `~/.claude/skills/agent-doctor/`，只选一个，调用 `/agent-doctor`。
 
-在 Claude Code 对话中显式输入：
+优先取已存在的 `/context`、`/skill-doctor` 或插件管理器统计。`/skill-doctor` 的可用性受版本、feature flags 和连接方式限制；远程连接可能无法用。拿不到就继续静态盘点，不让整个诊断停在“缺 token”。不自动调用会建议/执行修复的 `/doctor`。
 
-```text
-/agent-doctor
-只读体检当前项目和当前已授权的 agent 配置，输出 P0–P3 整改看板。
-不得运行测试/构建/项目脚本，不保存文件，不创建外部任务。
-```
+插件已有列表先区分 enabled 声明与当前会话加载；对启用候选在当前 CLI 明确支持时，可读取 `claude plugin details <已确认ID>` 的组件清单/预计开销。预计数不是实际 prompt。主会话原生只读接口不可用时，采集器可读已授权 `.claude` 目录和已有 JSON 列表，但不会自行执行这个命令。
 
-`disable-model-invocation: true` 控制模型自行加载，不是读写隔离。`allowed-tools` 是调用预授权，不会移除其他工具；本包不包含它，也不附带 `context: fork`、hook 或动态 shell 注入。
+skill 的发现信息、正文、参考文件分开；手动调用设置不能跨平台套用。列表可能被宿主截断、缩为 name-only，实际预算应用后的量与源 description 长度不同。插件子项有命名空间；同名和链接可能被宿主去重或覆盖，源目录重复不证明上下文重复。
 
-要用宿主进一步约束，只在用户批准的独立配置步骤中设定：允许必要的原生读取、拒绝写入工具与可写 MCP、限制 shell/外部命令/网络。权限层级和匹配方式需按当前宿主核实，不能靠一份通用片段覆盖现有组织策略。某些 Plan 流程会保存计划文件，不把“Plan”标签当作磁盘零写入证据。
-
-嵌套目录、worktree、插件与托管 skill 的发现可能不同；若名称冲突，查实际解析来源，不默认项目级一定优先。
+MCP 区分名称/服务器说明、完整 schema、工具返回。第三方 gateway 与工具搜索配置可能改变是否延迟加载，**不能默认所有 MCP 都全量常驻，也不能默认全部无开销**。只报告明确设置和观测，勿输出网关凭据。全局 `.claude.json` 的嵌套项目配置不由脚本自动遍历，需当前项目的筛选结果。
 
 ## Codex
 
-项目级目标：`.agents/skills/agent-doctor/`。
-个人级目标：`~/.agents/skills/agent-doctor/`。
-本包的 `agents/openai.yaml` 使用 `policy.allow_implicit_invocation: false`，保留显式调用。
+安装：`.agents/skills/agent-doctor/`，使用通用版，调用 `$agent-doctor`。保留 `agents/openai.yaml` 的显式调用策略；是否保留某种发现描述应由客户端证据确认，不因为禁止隐式调用就填 0 tokens。
 
-在 Codex 对话中输入：
-
-```text
-$agent-doctor
-只读体检当前项目。使用当前模型，不另开子代理，不运行项目代码。
-给出证据、反证、优先级、整改验收和需批准的范围。
-```
-
-`$...` 是对话中的 skill 调用，不是在 shell 中执行。发现路径和 metadata 不设置沙箱；需由宿主实际读写/网络限制执行安全边界。不要为本 skill 自行升级模式或改变用户既有模型预算。
+采集器支持 `--skills-dir`、`--rules-file`、`--config <已授权 config.toml>` 的来源统计和 MCP 声明。skill 禁用项、组织策略、路径覆盖、生效状态用原生信息核对；Claude JSONL 使用解析器不用于 Codex transcript。没有适配的历史就保留未统计，不能编造兼容。
 
 ## OpenCode
 
-项目级目标：`.opencode/skills/agent-doctor/`。
-全局目标：`~/.config/opencode/skills/agent-doctor/`。
-当前文档也列有 `.claude/skills`、`.agents/skills` 兼容发现路径；不要因此重复安装。
+安装：`.opencode/skills/agent-doctor/`，通用版；当前支持 metadata 的版本可用 `/agent-doctor`，否则按宿主方式显式选择。
 
-通用版采用字符串 metadata：
+采集器支持明确 skill 目录及 JSON MCP 声明；JSONC、动态 TypeScript 插件与完整 permission/工具覆盖不自动解释。禁止 import 插件来获得清单；manifest/源码只作为数据取证。MCP enabled 与 agent-specific tool permission 分开。实际支持的字段与加载方式以当前客户端为准。
 
-```yaml
-metadata:
-  opencode/slash: "true"
-  opencode/autoinvoke: "false"
-```
+## 安装与更新
 
-前者将 skill 暴露为 TUI 的 `/agent-doctor` 命令，后者从模型自动选择指引中隐藏。旧版是否支持这些键需核对，不能声称所有版本均已验证。
-
-skill 访问权限（allow/ask/deny）与其执行期间工具权限是两个层次。允许读取 skill 不等于允许执行其中任何命令。必要时让用户显式要求加载该 skill；仍需按当前 OpenCode/agent 权限独立控制编辑、shell 与外部工具。
-
-## 描述、自然语言与实际触发
-
-三个适配都保留显式调用：Claude Code 的 `disable-model-invocation: true`；Codex 的 `policy.allow_implicit_invocation: false`；OpenCode 的 `opencode/autoinvoke: "false"`。OpenCode 的该设置使 skill 不出现在模型自动选择列表中，仍可按名称手动加载。实际效果需在对应客户端版本验证。
-
-description 中的“找不到代码、上下文很快耗尽、改完无法验证”等症状用于解释用途和辅助显式选择，不承诺自动路由，也不改变授权范围。先显式调用，再解析自然语言的 audit/recheck/focus；仅提到症状不等于同意启动整套体检。若宿主忽略相应 metadata，应标明限制，而不是偷偷开启隐式调用。
-
-## 上下文观测入口（需按当前客户端版本核实）
-
-**这些是用户在各客户端取得信息的线索，不是本 skill 能自动执行的 shell 命令。** 若用户已提供脱敏状态输出或当前会话安全暴露的 usage 信息，先用它；没有则列为补证，不为了测量偷偷启动 CLI 或服务。
-
-- **Claude Code**：官方 `/context [all]` 可展示当前上下文使用图与分项（具体细节随版本变化）。请用户在 Claude Code 界面执行并提供脱敏结果。它显示的是**取得快照时**的状态，不代表 Doctor 启动前状态。资料：https://code.claude.com/docs/zh-CN/commands
-- **Codex**：某些客户端的 `/status` 可见会话与 context usage；不保证所有版本、CLI/API 返回完整分类。用户提供现成截图/文字或已授权元数据时才列为实测。资料：https://developers.openai.com/blog/mastering-codex-remote-for-engineering
-- **OpenCode**：可查看当前客户端提供的上下文/会话统计及现成日志；`limit.context` 是**模型容量配置**而非当前使用量。某些 API 有 session context 数据，必须有明确授权且工具具有安全读取契约才可用，不默认访问服务。资料：https://opencode.ai/docs/providers/
-
-把当前使用量、累计 usage、缓存 token、保留在窗口的内容分开。宿主未披露的 system prompt 和 MCP schema token 不反推。详见 [context-map.md](context-map.md)。
-
-## 被审计配置的候选来源
-
-先用当前会话暴露的运行信息，再看当前项目入口与用户已授权配置。常见线索包括 `AGENTS.md`、`CLAUDE.md`、规则目录、上述 skill 目录、harness 设置、工具清单和启动配置。
-
-这些只是候选，不是生效清单。明确区分：内容存在、能够被发现、实际触发、当前有效。特别核对子目录/工作树、全局覆盖、托管策略、同名 skill、网关参数覆盖。
-
-不要整扫 home 来找全局配置。不能在返回模型前脱敏的混合配置，不整文件读取；不读 auth/token/key 等认证存储。没有生效证据时记录未知。
+复制完整运行包即可，无需在用户机器运行打包器，也无需新装依赖。已有同名目录先比较来源/版本，保留完整备份，移出发现目录，再用新包替换；**不要直接解压叠加留下旧参考规则**。这一步只有用户明确要求安装/更新时才执行，不属于只读体检。
