@@ -1,0 +1,10 @@
+# Local maintenance output
+/dist/
+__pycache__/
+*.py[cod]
+.DS_Store
+
+# Never publish local credentials
+.env
+.env.*
+!.env.example
