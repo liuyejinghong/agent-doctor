@@ -51,7 +51,7 @@ disable-model-invocation: true
 | 参考 | 维度 |
 |---|---|
 | [上下文与工具](references/context-and-tools.md) | C01 effort；C02 skills；C06 工具成本；C13 全局指令；C14 仓库导航；G02 配置生效 |
-| [工作流与决策](references/workflow-and-decisions.md) | C03/04 开工与过度对齐；C08 复盘；C09 人工审查；C10 原型；C12 过度看管；C15 术语；C17/18 战略与决策 |
+| [工作流与决策](references/workflow-and-decisions.md) | C03 开工对齐；C04 过度对齐；C08 复盘；C09 人工审查；C10 原型；C12 过度看管；C15 术语；C17 战略；C18 决策 |
 | [验证与架构](references/verification-and-architecture.md) | C05 自动检查；C07 自动审查；C11 自证；C16 测试架构；G04 隔离/恢复 |
 | [安全与范围](references/safety-and-scope.md) | G01 权限/副作用；G03 数据外发 |
 
