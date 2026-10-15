@@ -64,6 +64,12 @@ metadata:
 
 skill 访问权限（allow/ask/deny）与其执行期间工具权限是两个层次。允许读取 skill 不等于允许执行其中任何命令。必要时让用户显式要求加载该 skill；仍需按当前 OpenCode/agent 权限独立控制编辑、shell 与外部工具。
 
+## 描述、自然语言与实际触发
+
+三个适配都保留显式调用：Claude Code 的 `disable-model-invocation: true`；Codex 的 `policy.allow_implicit_invocation: false`；OpenCode 的 `opencode/autoinvoke: "false"`。OpenCode 的该设置使 skill 不出现在模型自动选择列表中，仍可按名称手动加载。实际效果需在对应客户端版本验证。
+
+description 中的“找不到代码、上下文很快耗尽、改完无法验证”等症状用于解释用途和辅助显式选择，不承诺自动路由，也不改变授权范围。先显式调用，再解析自然语言的 audit/recheck/focus；仅提到症状不等于同意启动整套体检。若宿主忽略相应 metadata，应标明限制，而不是偷偷开启隐式调用。
+
 ## 被审计配置的候选来源
 
 先用当前会话暴露的运行信息，再看当前项目入口与用户已授权配置。常见线索包括 `AGENTS.md`、`CLAUDE.md`、规则目录、上述 skill 目录、harness 设置、工具清单和启动配置。

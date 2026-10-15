@@ -13,12 +13,13 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 NAME = "agent-doctor"
 CLAUDE_FLAG = "disable-model-invocation: true\n"
+EXPECTED_SCENARIOS = 42
 
 
 def collect_and_check() -> tuple[dict[str, bytes], str]:
     """Check known package invariants; not a full YAML or behavioral validator."""
     paths = [ROOT / name for name in (
-        "SKILL.md", "README.md", "README.zh-CN.md", "BUILD-VALIDATION.md"
+        "SKILL.md", "README.md", "README.zh-CN.md", "BUILD-VALIDATION.md", "CHANGELOG.md"
     )]
     for directory in ("agents", "assets", "references"):
         paths.extend(p for p in (ROOT / directory).rglob("*") if p.is_file())
@@ -54,12 +55,20 @@ def collect_and_check() -> tuple[dict[str, bytes], str]:
     checks = re.findall(r"^\| ([CG]\d{2}) \|", report, re.M)
     if len(checks) != 22 or set(checks) != expected_checks:
         raise ValueError("Coverage ledger must contain each of the 22 checks once")
+    matrix = "\n".join(line for line in text.splitlines() if line.startswith("|"))
+    entry_checks = re.findall(r"\b[CG]\d{2}\b", matrix)
+    if len(entry_checks) != 22 or set(entry_checks) != expected_checks:
+        raise ValueError("Entry matrix must define each of the 22 checks once")
     evaluation = json.loads(files["assets/eval-cases.json"])
     cases = evaluation["cases"]
     if evaluation["version"] != version.group(1) or evaluation["execution_status"] != "not_run_with_agents":
         raise ValueError("Unexpected evaluation version/status")
-    if len(cases) != 32 or {c["id"] for c in cases} != {f"EVAL-{i:02d}" for i in range(1, 33)}:
-        raise ValueError("Expected 32 unique scenario IDs")
+    if len(cases) != EXPECTED_SCENARIOS or {c["id"] for c in cases} != {f"EVAL-{i:02d}" for i in range(1, EXPECTED_SCENARIOS + 1)}:
+        raise ValueError(f"Expected {EXPECTED_SCENARIOS} unique scenario IDs")
+    scenario_index = files["references/acceptance-scenarios.md"].decode("utf-8")
+    index_ids = re.findall(r"^\| (EVAL-\d{2}) \|", scenario_index, re.M)
+    if len(index_ids) != len(cases) or set(index_ids) != {c["id"] for c in cases}:
+        raise ValueError("Scenario index and JSON must match")
     for case in cases:
         if not all(case.get(k) for k in ("title", "setup", "request", "expected", "forbidden")):
             raise ValueError(f"Incomplete scenario: {case.get('id')}")
@@ -85,7 +94,7 @@ def main() -> int:
     args = parser.parse_args()
     try:
         files, version = collect_and_check()
-        print("Static structure checks passed: 22 coverage entries, 32 unevaluated scenarios.")
+        print(f"Static structure checks passed: 22 coverage entries, {EXPECTED_SCENARIOS} unevaluated scenarios.")
         if args.check:
             return 0
         output = args.output.resolve()

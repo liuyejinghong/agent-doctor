@@ -1,85 +1,150 @@
 # Agent Doctor
 
-**Diagnose your coding agent's environment. Get a prioritized treatment plan. Stay read-only.**
-
 English | [简体中文](README.zh-CN.md)
 
-Agent Doctor is an explicitly invoked skill that examines the environment around a coding agent: instructions, skills, tools, effective configuration, permissions, verification paths, and authorized session evidence. It explains which mechanisms cause repeated mistakes, unnecessary work, or unreliable completion claims, then produces an evidence-backed P0–P3 remediation board.
+**Find the environment problems behind repeated coding-agent mistakes. Know what to fix first.**
 
-It is not a full code review, an installer, an auto-fixer, or a checklist demanding a particular tool stack. High effort, long reference files, and human review are not automatically defects.
+Does your agent edit the wrong files, wander through the repository, fill its context with tool output, or finish without useful verification? Model capability is one possible factor. Instructions, tools, configuration, and feedback loops are also worth examining.
 
-## Read-only by design
+Agent Doctor is a **read-only environment-audit skill for Claude Code, Codex, and OpenCode**. It inspects the current project and authorized agent configuration, then turns concrete findings into a prioritized remediation board with evidence and minimal fixes. You choose the changes; a separate execution stage implements them.
 
-The audit stays read-only, even after a remediation proposal is approved. Approval produces a scoped handoff for a separate execution stage; Agent Doctor can subsequently recheck the evidence.
+## What you get
 
-During an audit it does not run project code, tests, builds, diagnostic scripts, or services; edit files or save reports; create issues or update boards; install dependencies; start extra agents or model requests; or access production systems and credentials.
+Not just “improve your prompt.” A report explains what is wrong, why the finding holds, what to fix first, what to preserve, and how to verify or roll back a change.
 
-**A prompt is not a sandbox.** Host permissions and tool isolation must enforce the actual boundary. Explicit invocation settings are not write protection. Existing tool hooks and side effects are part of the audit, not exemptions from it.
+**Synthetic example only — these are not findings from a real repository:**
 
-## Install
+| Queue | ID | Priority | Finding or open question | Next step |
+|---|---|---|---|---|
+| Confirmed finding | AD-001 | P1 | `pytest \|\| true` at `scripts/check.sh:12` turns a failing check into success; remote merge protection is still unknown | Restore exit-code propagation while preserving existing checks; verify failing and passing fixtures in isolation |
+| Verification hypothesis | VFY-001 | P2 | High effort is the default, but comparable cost and quality evidence is missing | Gather comparable evidence before deciding whether to change routing; do not lower effort globally |
 
-The repository-root `SKILL.md` is the Claude Code variant. Both installable variants are generated from that same source; the portable variant removes only Claude Code's `disable-model-invocation` field.
+A full report includes an environment snapshot, a 22-item coverage ledger, a board, and individual evidence cards. Each card covers counterevidence, root cause, a minimal remedy, constraints to preserve, cost basis, dependencies, acceptance criteria, rollback, and approval scope. `AD-*` identifies evidence-backed findings; `VFY-*` identifies hypotheses needing verification. A verification priority expresses urgency to investigate, not certainty that an incident occurred.
 
-From a local clone of this repository, manually run:
+| Priority | Meaning |
+|---|---|
+| P0 | Credible evidence of ongoing or imminent major harm; propose containment for approval |
+| P1 | Critical correctness gaps or recurring delivery blockers |
+| P2 | Evidence-backed repeated work, context waste, or other inefficiency |
+| P3 | Low-impact cleanup or optional convenience that can wait |
+
+There is no aggregate health score to hide a critical issue. A report with no findings can have an empty board.
+
+## Quick installation
+
+From a local copy of this repository, run:
 
 ```sh
 python3 tools/package.py --check
 python3 tools/package.py
 ```
 
-This optional, standard-library-only maintenance tool validates the package structure and writes two ZIPs to `dist/`. It does not install the skill, use the network, or execute the project being audited. Existing ZIPs are not overwritten; use `--output <new-directory>` for another destination. The skill itself has no script dependency.
+These offline maintenance commands validate and build the archives. They do not install the skill or execute the project being audited. They require Python 3.9+; the skill itself has no script dependency. Output goes to `dist/`. Existing ZIPs are not overwritten; use `--output <new-directory>` to choose another destination.
 
-| Client | Archive | Copy the complete `agent-doctor/` directory to | Explicit invocation in the agent conversation |
+| Client | Archive | Copy the complete `agent-doctor/` folder to | Invoke in the agent conversation |
 |---|---|---|---|
-| Claude Code | `agent-doctor-claude-code-v1.0.0.zip` | `.claude/skills/agent-doctor/` | `/agent-doctor` |
-| Codex | `agent-doctor-portable-v1.0.0.zip` | `.agents/skills/agent-doctor/` | `$agent-doctor` |
-| OpenCode | `agent-doctor-portable-v1.0.0.zip` | `.opencode/skills/agent-doctor/` | `/agent-doctor` in versions supporting the bundled metadata |
+| Claude Code | `agent-doctor-claude-code-v1.1.0.zip` | `.claude/skills/agent-doctor/` | `/agent-doctor` |
+| Codex | `agent-doctor-portable-v1.1.0.zip` | `.agents/skills/agent-doctor/` | `$agent-doctor` |
+| OpenCode | `agent-doctor-portable-v1.1.0.zip` | `.opencode/skills/agent-doctor/` | `/agent-doctor`, with support for the bundled metadata |
 
-Install one variant in one discovery scope per host. Do not copy `SKILL.md` alone: it needs the reference files. Publishing or cloning this repository does not install it into your working projects. See [platform notes](references/platforms.md) for global paths and version limitations.
+Choose one installation scope per client. Do not copy `SKILL.md` alone. Both variants share their body and references; the portable variant removes only Claude Code's `disable-model-invocation` field. See [platform notes](references/platforms.md) for global paths and invocation policies.
 
-## First audit
+## The 22 checks
 
-Invoke the skill in your agent conversation and add:
+Start with a coverage ledger, then investigate according to risk and your focus. Every item ends as **confirmed issue, no issue observed in the sample, unknown, not applicable, or not inspected**.
+
+| Dimension | Checks | Main questions |
+|---|---|---|
+| [Context and tools](references/context-and-tools.md) | C01 effort; C02 skill size; C06 tool output; C13 global instructions; C14 repository navigation; G02 effective configuration | What actually loads for this task? Is the information useful? Does the configuration take effect? |
+| [Workflow and decisions](references/workflow-and-decisions.md) | C03 initial alignment; C04 excessive alignment; C08 retrospectives; C09 human review; C10 prototypes; C12 bounded autonomy; C15 shared language; C17 delivery strategy; C18 decision validation | Are goals and acceptance criteria clear? Which interactions are necessary decisions, and which are avoidable repetition? |
+| [Verification and architecture](references/verification-and-architecture.md) | C05 automated checks; C07 automated review; C11 completion evidence; C16 test architecture; G04 isolation and recovery | Can checks catch relevant errors? Can the agent obtain appropriate completion evidence? |
+| [Safety and scope](references/safety-and-scope.md) | G01 permissions and side effects; G03 sensitive data and outbound transfer | Is the read-only boundary actually enforced? Do tools or configuration create out-of-scope risks? |
+
+Covering 22 dimensions is not a claim to have read every file. Large repositories are sampled by critical module, with uninspected areas disclosed.
+
+## From audit to recheck
+
+### 1. Run an audit
+
+Explicitly invoke the skill, then describe the scope and focus. For example, in Claude Code or an OpenCode version supporting the metadata:
 
 ```text
-Read-only audit of the current project and authorized current-agent configuration.
-Cover every dimension; prioritize rules/skills, tool output, automated checks,
-and the review loop. Without session history, continue static inspection but
-leave behavioral claims unknown. Do not execute project code, write files,
-create external tasks, or start additional models or agents.
-Show a P0–P3 remediation board first, then evidence, counterevidence, and
-precise approval scopes. Respond in my language.
+/agent-doctor
+Audit this project and authorized agent configuration. Focus on context use,
+tool output, and automated verification. Continue static inspection without
+session history. Show the board first, then evidence and approvable remedies.
 ```
 
-These are conversation instructions, not shell commands. Historical analysis is limited to the current project and the records explicitly authorized by the user. For `recheck`, supply the previous report and relevant current evidence; existing finding IDs are preserved.
+Use `$agent-doctor` in Codex. These are conversation instructions, not terminal commands. Read-only and spending boundaries are built in; you do not need to repeat a long prohibition list.
 
-## What you receive
+The default mode is `audit`. “Focus on tool output” changes the order, not the coverage ledger. An explicitly narrower scope is respected, with other items recorded as not inspected this run. History is limited to the visible conversation and authorized records for the current project; static settings do not establish your working habits.
 
-A board of confirmed findings (`AD-001`, etc.) and a separate verification queue (`VFY-001`, etc.). Each finding includes its evidence, counterevidence, root cause, minimal remedy, constraints to preserve, alternatives, cost basis, dependencies, acceptance criteria, rollback, and approval scope.
+### 2. Approve a plan and receive a handoff
 
-| Priority | Meaning |
-|---|---|
-| P0 | Credible evidence of ongoing or imminent major harm; flag it without taking unilateral action. |
-| P1 | Confirmed critical correctness gaps or recurring delivery blockers. |
-| P2 | Evidence-backed inefficiency or unnecessary repeated work. |
-| P3 | Optional, low-impact improvements. |
+```text
+Approve AD-001 from this report and prepare an execution handoff limited to its
+listed files, actions, verification, and side effects. Leave the other items
+pending. Preserve uncommitted changes. No extra model calls, production access,
+commits, or pushes.
+```
 
-Coverage spans 18 workflow questions plus four governance checks: permission side effects, effective configuration, sensitive-data exposure, and verification isolation. Each is marked confirmed issue, no issue observed in the sample, unknown, not applicable, or not inspected. Sampling is bounded; a complete dimension ledger is not a claim to have read every file.
+A clear plan can be approved in ordinary language; no magic phrase or repeated approval is required. Permission to save a report covers only that action. **Agent Doctor does not apply fixes.** Give its handoff to a separate execution session, which works within the approved scope.
 
-There is no aggregate health score to hide a critical issue, no invented percentage savings, and no obligation to produce findings for a healthy sample.
+### 3. Recheck after implementation
 
-## Approval and recheck
+```text
+/agent-doctor
+Recheck AD-001 from the previous report. The report and current changes are
+provided; compare the original finding with the available acceptance evidence.
+```
 
-Approve specific findings against a specific report and its listed action boundaries. The skill returns a restricted execution handoff, not an automatic fix. Permission to save a report does not authorize configuration changes, external publication, or extra model spending. Recheck distinguishes a static change from matching acceptance evidence and does not close external issues automatically.
+Requests to “recheck the previous findings” or “verify the remediation” map to `recheck`; an explicitly requested mode takes precedence. Attaching an old report alone does not switch modes. When the baseline is missing, inspect available current evidence and disclose the gap rather than inventing old IDs or closure claims.
 
-See the [report template](references/report-template.md), [priority rules](references/priorities-and-remediation.md), and [approval handoff](references/approval-handoff.md).
+Recheck preserves finding IDs and distinguishes a static edit from matching acceptance evidence. It does not run tests to fill gaps or automatically close issues and board cards.
 
-## Validation status
+## Why the findings are inspectable
 
-Version **1.0.0**. Local package-structure checks are recorded in [BUILD-VALIDATION.md](BUILD-VALIDATION.md). The [32 behavioral scenarios](references/acceptance-scenarios.md) and [machine-readable cases](assets/eval-cases.json) are specifications, **not 32 passed agent tests**. Real-client discovery, invocation behavior, tool isolation, and model reliability have not been validated in this release.
+**Evidence before judgment.** A configuration file is not proof it loaded. A test script is not proof it blocks errors. Each finding needs a real location, counterevidence, and consideration of alternative explanations.
 
-The audit instructions and detailed references are currently written in Chinese; output follows the user's language. Both READMEs document the same behavior.
+**Useful mechanisms are preserved.** High effort, long reference documents, and human review can be appropriate. Before proposing deletion, establish what a rule or test protects. When an independent purpose cannot be ruled out, investigate first. Repair existing mechanisms before proposing another tool stack.
 
-## Design references
+## Reading budgets
 
-Inspired by the AI Coding Dictionary and AIHero's skills material, especially evidence-driven retrospectives and progressive disclosure. This is an independent project, not an official AIHero skill or a repackaging of upstream skill code. See [sources and design decisions](references/sources.md).
+Project evidence and the skill's own instructions have separate counters. This keeps evidence coverage distinct from procedural overhead; internal references still consume context.
+
+| Category | Default reading cap | Contents |
+|---|---|---|
+| Project evidence | 60 calls / 60,000 characters | Project files, configuration, authorized history, and other audited material |
+| Internal instructions | 20 calls / 20,000 characters | The invoked Agent Doctor entry and its own references |
+| Combined | 80 calls / 80,000 characters | Both categories together, subject to tighter user or host limits |
+
+Read roughly 200 lines at a time, locate sections before expanding, and reuse loaded text. Reaching an applicable limit stops that category of reading and leaves disclosed gaps. Where precise measurement is unavailable, label estimates. These adjustable sampling budgets are not performance guarantees or API billing totals. See [safety and scope](references/safety-and-scope.md).
+
+## Safety boundary
+
+The audit reads authorized materials, analyzes existing evidence, and returns proposals in the conversation. Project tests, builds, diagnostic commands, file writes, external task updates, and installations belong in a separately approved execution stage. The audit does not start extra models or subagents, read credentials, or access production systems.
+
+**A prompt is not a sandbox.** Explicit invocation controls loading, not write isolation. Actual protection depends on host permissions and tool constraints. A read path with known write side effects is stopped in favor of a safe alternative; authorized native reads with clear contracts can proceed without repeated confirmation.
+
+## File guide
+
+```text
+agent-doctor/
+├── SKILL.md                 # Boundaries, input mapping, six-step audit
+├── README.md / README.zh-CN.md
+├── agents/openai.yaml       # Codex explicit-invocation policy
+├── references/              # 22 checks, report, handoff, platform notes
+├── assets/eval-cases.json   # Synthetic behavioral evaluation cases
+├── tools/package.py         # Offline maintainer checks and packaging
+├── tests/test_package.py    # Maintainer-tool regression tests, not agent evals
+├── CHANGELOG.md             # Version changes and review decisions
+└── BUILD-VALIDATION.md      # Executed checks and unverified areas
+```
+
+[Report template](references/report-template.md) · [Priority rules](references/priorities-and-remediation.md) · [Approval handoff](references/approval-handoff.md)
+
+## Validation and sources
+
+Version **1.1.0**. See [BUILD-VALIDATION.md](BUILD-VALIDATION.md) for reproducible structure checks, maintainer-tool tests, and limitations. **The 42 synthetic behavioral scenarios have not been executed with real agents.** They are not 42 passed model tests. Real-client installation, invocation suppression, host isolation, and model reliability still need validation.
+
+The design draws on the AI Coding Dictionary and AIHero's skills material. This is an independent project, not an official AIHero skill. Audit rules are currently written in Chinese; report output follows the user's language. See [sources and design decisions](references/sources.md) and the [changelog](CHANGELOG.md).
