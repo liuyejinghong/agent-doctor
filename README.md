@@ -78,7 +78,7 @@ Explicitly invoke the skill, then describe the scope and focus. For example, in 
 /agent-doctor
 Audit this project and authorized agent configuration. Focus on context use,
 tool output, and automated verification. Continue static inspection without
-session history. Show the board first, then evidence and approvable remedies.
+session history. Show the context-source inventory and loading paths first, then the remediation board and evidence-backed remedies.
 ```
 
 Use `$agent-doctor` in Codex. These are conversation instructions, not terminal commands. Read-only and spending boundaries are built in; you do not need to repeat a long prohibition list.
